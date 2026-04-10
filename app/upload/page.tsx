@@ -2,46 +2,46 @@
 
 import { useState } from 'react'
 
-// ─── Types (mirrors analyzeDocument return shape) ──────────────────────────────
+// ─── Types — mirrors /api/upload route response shape ──────────────────────────
 
-interface Gap {
-  severity: 'critical' | 'major' | 'minor'
-  regulation: string
+type FindingStatus = 'covered' | 'partial' | 'missing' | 'human_review'
+
+interface Finding {
+  requirement: string
+  status: FindingStatus
+  detail: string
+}
+
+interface CitationRef {
+  title: string
   section: string
-  description: string
-  recommendation: string
+  quote: string
 }
 
 interface AnalysisResult {
-  score: number
-  gaps: Gap[]
-  recommendations: string[]
+  summary: string
+  findings: Finding[]
+  citations: CitationRef[]
+  riskFlags: string[]
 }
 
-// ─── Severity badge colours ────────────────────────────────────────────────────
+// ─── Status badge config ───────────────────────────────────────────────────────
 
-const SEVERITY_STYLES: Record<Gap['severity'], string> = {
-  critical: 'background:#fef2f2;color:#b91c1c;border:1px solid #fca5a5',
-  major:    'background:#fff7ed;color:#c2410c;border:1px solid #fdba74',
-  minor:    'background:#f0fdf4;color:#15803d;border:1px solid #86efac',
-}
-
-// ─── Score colour ──────────────────────────────────────────────────────────────
-
-function scoreColour(score: number): string {
-  if (score >= 80) return '#15803d'
-  if (score >= 60) return '#b45309'
-  return '#b91c1c'
+const STATUS_CONFIG: Record<FindingStatus, { label: string; bg: string; color: string; border: string }> = {
+  covered:      { label: 'Covered',      bg: 'rgba(34,197,94,0.15)',   color: '#4ade80', border: '1px solid rgba(34,197,94,0.3)' },
+  partial:      { label: 'Partial',      bg: 'rgba(245,158,11,0.15)',  color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)' },
+  missing:      { label: 'Missing',      bg: 'rgba(239,68,68,0.15)',   color: '#f87171', border: '1px solid rgba(239,68,68,0.3)' },
+  human_review: { label: 'Human Review', bg: 'rgba(124,91,220,0.15)',  color: '#c4b5fd', border: '1px solid rgba(124,91,220,0.3)' },
 }
 
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function UploadPage() {
-  const [docText, setDocText]     = useState('')
-  const [fileName, setFileName]   = useState('')
-  const [loading, setLoading]     = useState(false)
-  const [error, setError]         = useState<string | null>(null)
-  const [result, setResult]       = useState<AnalysisResult | null>(null)
+  const [docText, setDocText]   = useState('')
+  const [fileName, setFileName] = useState('')
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState<string | null>(null)
+  const [result, setResult]     = useState<AnalysisResult | null>(null)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -58,10 +58,7 @@ export default function UploadPage() {
       const res = await fetch('/api/upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          docText,
-          fileName: fileName.trim() || undefined,
-        }),
+        body: JSON.stringify({ docText, fileName: fileName.trim() || undefined }),
       })
 
       const data = await res.json()
@@ -79,23 +76,41 @@ export default function UploadPage() {
     }
   }
 
-  return (
-    <main style={{ maxWidth: 800, margin: '0 auto', padding: '2rem 1rem', fontFamily: 'system-ui, sans-serif', color: '#111' }}>
+  // Count findings by status
+  const counts = result
+    ? {
+        covered:      result.findings.filter((f) => f.status === 'covered').length,
+        partial:      result.findings.filter((f) => f.status === 'partial').length,
+        missing:      result.findings.filter((f) => f.status === 'missing').length,
+        human_review: result.findings.filter((f) => f.status === 'human_review').length,
+      }
+    : null
 
-      {/* ── Header ── */}
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+  return (
+    <main style={{
+      maxWidth: 820,
+      margin: '0 auto',
+      padding: '2rem 1.5rem',
+      fontFamily: 'inherit',
+      color: 'var(--text-primary)',
+    }}>
+
+      {/* ── Header ──────────────────────────────────────────────────────────── */}
+      <h1 style={{ fontSize: '1.375rem', fontWeight: 700, marginBottom: '0.375rem', color: 'var(--text-primary)' }}>
         Technical Document Review
       </h1>
-      <p style={{ color: '#6b7280', marginBottom: '1.75rem', fontSize: '0.9rem' }}>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '1.75rem', fontSize: '0.875rem', lineHeight: 1.6 }}>
         Paste your document text below to receive an AI-powered regulatory compliance analysis.
       </p>
 
-      {/* ── Form ── */}
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+      {/* ── Form ────────────────────────────────────────────────────────────── */}
+      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.125rem' }}>
 
+        {/* File name */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-          <label htmlFor="fileName" style={{ fontSize: '0.875rem', fontWeight: 600 }}>
-            File Name <span style={{ color: '#9ca3af', fontWeight: 400 }}>(optional)</span>
+          <label htmlFor="fileName" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            File Name{' '}
+            <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span>
           </label>
           <input
             id="fileName"
@@ -105,17 +120,25 @@ export default function UploadPage() {
             onChange={(e) => setFileName(e.target.value)}
             style={{
               padding: '0.5rem 0.75rem',
-              border: '1px solid #d1d5db',
-              borderRadius: 6,
-              fontSize: '0.9rem',
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              fontSize: '0.875rem',
+              color: 'var(--text-primary)',
               outline: 'none',
+              fontFamily: 'inherit',
+              transition: 'border-color 0.15s',
             }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent)' }}
+            onBlur={(e)  => { e.currentTarget.style.borderColor = 'var(--border)' }}
           />
         </div>
 
+        {/* Document text */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-          <label htmlFor="docText" style={{ fontSize: '0.875rem', fontWeight: 600 }}>
-            Document Text <span style={{ color: '#ef4444' }}>*</span>
+          <label htmlFor="docText" style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Document Text{' '}
+            <span style={{ color: 'var(--danger)', fontWeight: 700 }}>*</span>
           </label>
           <textarea
             id="docText"
@@ -125,93 +148,207 @@ export default function UploadPage() {
             onChange={(e) => setDocText(e.target.value)}
             style={{
               padding: '0.625rem 0.75rem',
-              border: '1px solid #d1d5db',
-              borderRadius: 6,
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
               fontSize: '0.875rem',
+              color: 'var(--text-primary)',
               resize: 'vertical',
               outline: 'none',
-              lineHeight: 1.6,
+              lineHeight: 1.65,
+              fontFamily: 'inherit',
+              transition: 'border-color 0.15s',
             }}
+            onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--accent)' }}
+            onBlur={(e)  => { e.currentTarget.style.borderColor = 'var(--border)' }}
           />
+          <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            Up to 8 000 characters will be analysed. No file upload required.
+          </div>
         </div>
 
+        {/* Error */}
         {error && (
-          <p role="alert" style={{ color: '#b91c1c', fontSize: '0.875rem', background: '#fef2f2', border: '1px solid #fca5a5', borderRadius: 6, padding: '0.625rem 0.875rem', margin: 0 }}>
-            {error}
+          <p role="alert" style={{
+            color: '#f87171',
+            fontSize: '0.875rem',
+            background: 'rgba(239,68,68,0.12)',
+            border: '1px solid rgba(239,68,68,0.3)',
+            borderRadius: 8,
+            padding: '0.625rem 0.875rem',
+            margin: 0,
+          }}>
+            ⚠️ {error}
           </p>
         )}
 
+        {/* Submit */}
         <button
           type="submit"
+          id="upload-submit-btn"
           disabled={loading}
           style={{
             alignSelf: 'flex-start',
             padding: '0.6rem 1.5rem',
-            background: loading ? '#6b7280' : '#1d4ed8',
+            background: loading ? 'var(--bg-hover)' : 'var(--accent)',
             color: '#fff',
             border: 'none',
-            borderRadius: 6,
-            fontSize: '0.9rem',
+            borderRadius: 8,
+            fontSize: '0.875rem',
             fontWeight: 600,
             cursor: loading ? 'not-allowed' : 'pointer',
+            opacity: loading ? 0.7 : 1,
+            transition: 'opacity 0.15s, background 0.15s',
+            boxShadow: loading ? 'none' : '0 0 0 0 var(--accent-glow)',
           }}
+          onMouseEnter={(e) => { if (!loading) e.currentTarget.style.boxShadow = '0 0 14px var(--accent-glow)' }}
+          onMouseLeave={(e) => { e.currentTarget.style.boxShadow = 'none' }}
         >
-          {loading ? 'Analysing…' : 'Analyse Document'}
+          {loading ? '⏳ Analysing…' : '🔍 Analyse Document'}
         </button>
       </form>
 
-      {/* ── Results ── */}
+      {/* ── Results ─────────────────────────────────────────────────────────── */}
       {result && (
         <section aria-label="Analysis results" style={{ marginTop: '2.5rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
-          {/* Score */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '1rem 1.25rem', border: '1px solid #e5e7eb', borderRadius: 8, background: '#f9fafb' }}>
-            <span style={{ fontSize: '2.5rem', fontWeight: 800, color: scoreColour(result.score), lineHeight: 1 }}>
-              {result.score}
-            </span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Compliance Score</div>
-              <div style={{ color: '#6b7280', fontSize: '0.8rem' }}>out of 100</div>
+          {/* Summary */}
+          <div style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border)',
+            borderRadius: 10,
+            padding: '1rem 1.25rem',
+          }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent)', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+              Summary
             </div>
+            <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-primary)', lineHeight: 1.65 }}>
+              {result.summary}
+            </p>
           </div>
 
-          {/* Gaps */}
-          {result.gaps.length > 0 && (
+          {/* Status counts */}
+          {counts && (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem' }}>
+              {(Object.entries(STATUS_CONFIG) as [FindingStatus, typeof STATUS_CONFIG[FindingStatus]][]).map(([key, cfg]) => (
+                <div key={key} style={{
+                  background: cfg.bg,
+                  border: cfg.border,
+                  borderRadius: 8,
+                  padding: '0.625rem 0.75rem',
+                  textAlign: 'center',
+                }}>
+                  <div style={{ fontSize: '1.5rem', fontWeight: 800, color: cfg.color, lineHeight: 1 }}>
+                    {counts[key]}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 600, color: cfg.color, marginTop: 4, opacity: 0.85 }}>
+                    {cfg.label}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Findings */}
+          {result.findings.length > 0 && (
             <div>
-              <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-                Compliance Gaps ({result.gaps.length})
+              <h2 style={{ fontSize: '0.9375rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>
+                Findings ({result.findings.length})
               </h2>
-              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                {result.gaps.map((gap, i) => (
-                  <li key={i} style={{ border: '1px solid #e5e7eb', borderRadius: 8, padding: '0.875rem 1rem', background: '#fff' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem', flexWrap: 'wrap' }}>
-                      <span style={{ ...Object.fromEntries(SEVERITY_STYLES[gap.severity as Gap['severity']]?.split(';').map(s => s.split(':')) ?? []), fontSize: '0.72rem', fontWeight: 700, padding: '0.125rem 0.5rem', borderRadius: 999, textTransform: 'uppercase', letterSpacing: '0.05em' } as React.CSSProperties}>
-                        {gap.severity}
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                {result.findings.map((f, i) => {
+                  const cfg = STATUS_CONFIG[f.status]
+                  return (
+                    <li key={i} style={{
+                      background: 'var(--bg-card)',
+                      border: '1px solid var(--border)',
+                      borderRadius: 8,
+                      padding: '0.75rem 1rem',
+                      display: 'flex',
+                      gap: '0.75rem',
+                      alignItems: 'flex-start',
+                    }}>
+                      <span style={{
+                        flexShrink: 0,
+                        marginTop: 2,
+                        padding: '0.15rem 0.55rem',
+                        borderRadius: 999,
+                        fontSize: '0.68rem',
+                        fontWeight: 700,
+                        letterSpacing: '0.04em',
+                        background: cfg.bg,
+                        color: cfg.color,
+                        border: cfg.border,
+                        whiteSpace: 'nowrap',
+                      }}>
+                        {cfg.label}
                       </span>
-                      <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>{gap.regulation}</span>
-                      <span style={{ fontSize: '0.8rem', color: '#6b7280' }}>§{gap.section}</span>
-                    </div>
-                    <p style={{ margin: '0 0 0.375rem', fontSize: '0.875rem', color: '#374151' }}>{gap.description}</p>
-                    <p style={{ margin: 0, fontSize: '0.825rem', color: '#6b7280' }}>
-                      <strong style={{ color: '#374151' }}>Recommendation: </strong>{gap.recommendation}
-                    </p>
+                      <div>
+                        <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
+                          {f.requirement}
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.55 }}>
+                          {f.detail}
+                        </div>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            </div>
+          )}
+
+          {/* Risk flags */}
+          {result.riskFlags.length > 0 && (
+            <div>
+              <h2 style={{ fontSize: '0.9375rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>
+                ⚠️ Risk Flags ({result.riskFlags.length})
+              </h2>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                {result.riskFlags.map((flag, i) => (
+                  <li key={i} style={{
+                    background: 'rgba(239,68,68,0.08)',
+                    border: '1px solid rgba(239,68,68,0.25)',
+                    borderRadius: 8,
+                    padding: '0.625rem 0.875rem',
+                    fontSize: '0.8125rem',
+                    color: '#f87171',
+                    lineHeight: 1.55,
+                  }}>
+                    {flag}
                   </li>
                 ))}
               </ul>
             </div>
           )}
 
-          {/* Recommendations */}
-          {result.recommendations.length > 0 && (
+          {/* Citations */}
+          {result.citations.length > 0 && (
             <div>
-              <h2 style={{ fontSize: '1rem', fontWeight: 700, marginBottom: '0.75rem' }}>
-                General Recommendations
+              <h2 style={{ fontSize: '0.9375rem', fontWeight: 700, marginBottom: '0.75rem', color: 'var(--text-primary)' }}>
+                📎 Citations ({result.citations.length})
               </h2>
-              <ul style={{ paddingLeft: '1.25rem', margin: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                {result.recommendations.map((rec, i) => (
-                  <li key={i} style={{ fontSize: '0.875rem', color: '#374151' }}>{rec}</li>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                {result.citations.map((c, i) => (
+                  <div key={i} style={{
+                    background: 'var(--bg-card)',
+                    border: '1px solid var(--border)',
+                    borderLeft: '3px solid var(--accent)',
+                    borderRadius: 8,
+                    padding: '0.75rem 1rem',
+                  }}>
+                    <div style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>
+                      {c.title}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--accent)', marginBottom: '0.375rem' }}>
+                      {c.section}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: 1.55, fontStyle: 'italic' }}>
+                      &ldquo;{c.quote}&rdquo;
+                    </div>
+                  </div>
                 ))}
-              </ul>
+              </div>
             </div>
           )}
 

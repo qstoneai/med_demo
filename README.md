@@ -21,7 +21,7 @@ npm install
 ### 2. Configure environment
 ```bash
 cp .env.local.example .env.local
-# Edit .env.local and add your Anthropic API key
+# Edit .env.local and add your OPENAI API key
 ```
 
 ### 3. Run development server
@@ -35,7 +35,7 @@ Open [http://localhost:3000](http://localhost:3000) — the app works in **demo 
 
 | Variable | Required | Description |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Optional* | Anthropic API key for live Claude responses |
+| `OPENAI_API_KEY` | Optional* | Anthropic API key for live Claude responses |
 
 *The app runs in demo mode without a key — ideal for demos and presentations.
 
@@ -80,7 +80,7 @@ npm i -g vercel
 vercel
 
 # Add your API key as a secret
-vercel env add ANTHROPIC_API_KEY
+vercel env add OPENAI_API_KEY
 ```
 
 Or connect your GitHub repo in the [Vercel Dashboard](https://vercel.com/new) for automatic deployments.
