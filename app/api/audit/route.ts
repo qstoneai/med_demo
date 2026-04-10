@@ -19,7 +19,7 @@ const DEMO_AUDIT_LOG: AuditEntry[] = [
     timestamp: '2026-04-09T01:45:00.000Z',
     actionType: 'document_review',
     summary: 'Reviewed 510(k) premarket notification for Class II cardiac monitor',
-    modelName: 'claude-sonnet-4-5',
+    modelName: 'gpt-4o-mini',
     citationsCount: 5,
   },
   {
@@ -27,7 +27,7 @@ const DEMO_AUDIT_LOG: AuditEntry[] = [
     timestamp: '2026-04-09T01:52:30.000Z',
     actionType: 'chat_query',
     summary: 'Query: "What are the ISO 14971 risk acceptability criteria requirements?"',
-    modelName: 'claude-sonnet-4-5',
+    modelName: 'gpt-4o-mini',
     citationsCount: 3,
   },
   {
@@ -43,7 +43,7 @@ const DEMO_AUDIT_LOG: AuditEntry[] = [
     timestamp: '2026-04-09T02:18:44.000Z',
     actionType: 'document_review',
     summary: 'Reviewed risk management file against ISO 14971:2019 — 3 gaps identified',
-    modelName: 'claude-sonnet-4-5',
+    modelName: 'gpt-4o-mini',
     citationsCount: 4,
   },
   {
@@ -51,7 +51,7 @@ const DEMO_AUDIT_LOG: AuditEntry[] = [
     timestamp: '2026-04-09T02:35:08.000Z',
     actionType: 'chat_query',
     summary: 'Query: "Summarise EU MDR Annex I general safety and performance requirements"',
-    modelName: 'claude-sonnet-4-5',
+    modelName: 'gpt-4o-mini',
     citationsCount: 6,
   },
   {
@@ -67,7 +67,7 @@ const DEMO_AUDIT_LOG: AuditEntry[] = [
     timestamp: '2026-04-09T02:55:22.000Z',
     actionType: 'document_review',
     summary: 'Reviewed clinical evaluation report — labelling and PMCF plan partially addressed',
-    modelName: 'claude-sonnet-4-5',
+    modelName: 'gpt-4o-mini',
     citationsCount: 3,
   },
   {
@@ -75,7 +75,7 @@ const DEMO_AUDIT_LOG: AuditEntry[] = [
     timestamp: '2026-04-09T03:12:47.000Z',
     actionType: 'chat_query',
     summary: 'Query: "How does IEC 62304 classify software safety levels for Class IIa devices?"',
-    modelName: 'claude-sonnet-4-5',
+    modelName: 'gpt-4o-mini',
     citationsCount: 2,
   },
   {
@@ -91,7 +91,7 @@ const DEMO_AUDIT_LOG: AuditEntry[] = [
     timestamp: '2026-04-09T03:45:19.000Z',
     actionType: 'document_review',
     summary: 'Reviewed QMS procedure document against ISO 13485:2016 — 2 gaps identified',
-    modelName: 'claude-sonnet-4-5',
+    modelName: 'gpt-4o-mini',
     citationsCount: 4,
   },
 ]

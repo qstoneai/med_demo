@@ -28,7 +28,7 @@ function getDemoAnalysis(fileName: string): UploadAnalysisResponse {
       'This document appears to be a medical device technical file. ' +
       'Several key regulatory requirements are addressed, but gaps were identified in ' +
       'post-market surveillance planning and clinical evaluation traceability. ' +
-      'Add ANTHROPIC_API_KEY to .env.local for a live Claude-powered review.',
+      'Add OPENAI_API_KEY to .env.local for a live OpenAI-powered review.',
     findings: [
       {
         requirement: 'Device Description & Intended Use (EU MDR Annex II §1)',
@@ -122,7 +122,7 @@ function getDemoAnalysis(fileName: string): UploadAnalysisResponse {
   }
 }
 
-// ── System prompt for Claude ───────────────────────────────────────────────────
+// ── System prompt ──────────────────────────────────────────────────────────────
 const UPLOAD_SYSTEM_PROMPT = `You are MedReg AI, an expert medical device regulatory reviewer.
 Analyze the provided technical document text and return a structured JSON compliance review.
 
@@ -184,40 +184,36 @@ export async function POST(request: NextRequest) {
       : 'Untitled Document'
 
   // 2. Demo mode — no API key
-  if (!process.env.ANTHROPIC_API_KEY) {
+  if (!process.env.OPENAI_API_KEY) {
     return NextResponse.json(getDemoAnalysis(resolvedFileName))
   }
 
-  // 3. Live mode — call Claude via lib/anthropic
+  // 3. Live mode — call OpenAI via lib/anthropic (OpenAI-backed)
   try {
-    const Anthropic = (await import('@anthropic-ai/sdk')).default
-    const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+    const OpenAI = (await import('openai')).default
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
     const userPrompt =
       `File: ${resolvedFileName}\n\n` +
       `Document text (truncated to 8000 chars):\n${docText.slice(0, 8000)}`
 
-    const response = await client.messages.create({
-      model: 'claude-opus-4-5',
-      max_tokens: 2048,
-      system: UPLOAD_SYSTEM_PROMPT,
-      messages: [{ role: 'user', content: userPrompt }],
+    const response = await client.responses.create({
+      model: 'gpt-4o-mini',
+      instructions: UPLOAD_SYSTEM_PROMPT,
+      input: userPrompt,
     })
 
-    const rawText = response.content
-      .filter((block) => block.type === 'text')
-      .map((block) => (block as { type: 'text'; text: string }).text)
-      .join('')
+    const rawText = response.output_text ?? ''
 
-    // Strip optional markdown fences Claude sometimes adds
+    // Strip optional markdown fences the model sometimes adds
     const jsonText = rawText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/, '').trim()
 
     let parsed: UploadAnalysisResponse
     try {
       parsed = JSON.parse(jsonText) as UploadAnalysisResponse
     } catch {
-      // Claude returned non-JSON — fall back to demo so the UI never breaks
-      console.error('[/api/upload] Claude returned non-JSON:', rawText.slice(0, 200))
+      // Model returned non-JSON — fall back to demo so the UI never breaks
+      console.error('[/api/upload] model returned non-JSON:', rawText.slice(0, 200))
       return NextResponse.json(getDemoAnalysis(resolvedFileName))
     }
 

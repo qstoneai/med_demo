@@ -210,7 +210,7 @@ export default function ChatPage() {
                       ))}
                     </div>
                     <div className="msg-time" style={{ textAlign: msg.role === 'user' ? 'right' : 'left' }}>
-                      {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      {new Date(msg.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', hour12: true })}
                     </div>
                     {msg.citations && msg.citations.length > 0 && (
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
@@ -260,7 +260,7 @@ export default function ChatPage() {
                 </button>
               </div>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8 }}>
-                Powered by Claude · Citations pulled from FDA, EU MDR, ISO standards
+                Powered by GPT-4o-mini · Citations pulled from FDA, EU MDR, ISO standards
               </div>
             </div>
           </div>

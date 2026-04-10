@@ -1,7 +1,7 @@
-import Anthropic from '@anthropic-ai/sdk'
+import OpenAI from 'openai'
 import type { Citation } from './types'
 
-// ─── Claude client (server-only) ──────────────────────────────────────────────
+// ─── OpenAI client (server-only) ──────────────────────────────────────────────
 
 const REGULATORY_SYSTEM_PROMPT = `You are MedReg AI, an expert medical device regulatory assistant.
 You have deep knowledge of:
@@ -26,12 +26,12 @@ Always end your response with a CITATIONS block in this exact format:
 [REG-002] | Regulation Title | Section X.X | Brief excerpt from the regulation text
 ---END---`
 
-function getClient(): Anthropic {
-  const apiKey = process.env.ANTHROPIC_API_KEY
+function getClient(): OpenAI {
+  const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
-    throw new Error('ANTHROPIC_API_KEY environment variable is not set')
+    throw new Error('OPENAI_API_KEY environment variable is not set')
   }
-  return new Anthropic({ apiKey })
+  return new OpenAI({ apiKey })
 }
 
 function parseCitations(text: string): { content: string; citations: Citation[] } {
@@ -67,17 +67,19 @@ export async function chat(
 ): Promise<{ content: string; citations: Citation[] }> {
   const client = getClient()
 
-  const response = await client.messages.create({
-    model: 'claude-sonnet-4-5',
-    max_tokens: 2048,
-    system: REGULATORY_SYSTEM_PROMPT,
-    messages,
+  // Responses API input format: system instruction + message history
+  const input: OpenAI.Responses.ResponseInput = messages.map((m) => ({
+    role: m.role,
+    content: m.content,
+  }))
+
+  const response = await client.responses.create({
+    model: 'gpt-4o-mini',
+    instructions: REGULATORY_SYSTEM_PROMPT,
+    input,
   })
 
-  const rawText = response.content
-    .filter((block) => block.type === 'text')
-    .map((block) => (block as { type: 'text'; text: string }).text)
-    .join('')
+  const rawText = response.output_text ?? ''
 
   return parseCitations(rawText)
 }
@@ -85,7 +87,17 @@ export async function chat(
 export async function analyzeDocument(
   fileContent: string,
   fileName: string
-): Promise<{ gaps: Array<{ severity: string; regulation: string; section: string; description: string; recommendation: string }>; recommendations: string[]; score: number }> {
+): Promise<{
+  gaps: Array<{
+    severity: string
+    regulation: string
+    section: string
+    description: string
+    recommendation: string
+  }>
+  recommendations: string[]
+  score: number
+}> {
   const client = getClient()
 
   const prompt = `Analyze the following medical device technical document "${fileName}" for regulatory compliance.
@@ -114,16 +126,12 @@ Format your response as JSON with this structure:
   "recommendations": ["<general recommendation 1>", "<general recommendation 2>"]
 }`
 
-  const response = await client.messages.create({
-    model: 'claude-opus-4-5',
-    max_tokens: 2048,
-    messages: [{ role: 'user', content: prompt }],
+  const response = await client.responses.create({
+    model: 'gpt-4o-mini',
+    input: prompt,
   })
 
-  const rawText = response.content
-    .filter((b) => b.type === 'text')
-    .map((b) => (b as { type: 'text'; text: string }).text)
-    .join('')
+  const rawText = response.output_text ?? ''
 
   try {
     const jsonMatch = rawText.match(/\{[\s\S]*\}/)

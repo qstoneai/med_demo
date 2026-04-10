@@ -216,7 +216,7 @@ Almost identical structure to FDA 21 CFR Part 820 — companies certified to ISO
   return {
     content: `Thank you for your question about **"${query.slice(0, 80)}${query.length > 80 ? '…' : ''}"**.
 
-> ℹ️ **Demo Mode** — No API key configured. Add \`ANTHROPIC_API_KEY\` to \`.env.local\` for live Claude responses.
+> ℹ️ **Demo Mode** — No API key configured. Add \`OPENAI_API_KEY\` to \`.env.local\` for live GPT responses.
 
 **I can assist with these regulatory topics:**
 
@@ -277,11 +277,11 @@ export async function POST(request: NextRequest) {
 
     let result: { content: string; citations: Citation[] }
 
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!process.env.OPENAI_API_KEY) {
       // Demo mode
       result = getDemoResponse(lastUserMsg)
     } else {
-      // Live Claude — import dynamically to avoid issues in demo mode
+      // Live GPT — import dynamically to avoid issues in demo mode
       const { chat } = await import('@/lib/anthropic')
       result = await chat(messages)
     }
