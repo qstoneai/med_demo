@@ -21,16 +21,22 @@ interface ApiMessage {
   content: string
 }
 
-interface Citation {
+/** Citation returned by /api/chat — used by chat/page.tsx */
+export interface ChatCitation {
+  /** Stable within a response, e.g. "c1". Used for badge click-linking. */
   id: string
-  title: string
+  /** Badge label shown in the message, e.g. "[REG-001]" */
   source: string
+  /** Full regulation name */
+  title: string
+  /** Article / section / clause */
   section: string
+  /** Near-verbatim excerpt from the regulatory text */
   excerpt: string
 }
 
 // ── Demo responses (no API key needed) ───────────────────────────────────────
-function getDemoResponse(query: string): { content: string; citations: Citation[] } {
+function getDemoResponse(query: string): { content: string; citations: ChatCitation[]; confidence: number } {
   const q = query.toLowerCase()
 
   if (q.includes('510') || q.includes('premarket notification')) {
@@ -85,6 +91,7 @@ ${predicateRows}`,
         { id: 'c3', source: '[REG-003]', title: 'Substantial Equivalence Decision-Making Process', section: 'FDA Guidance 2014', excerpt: 'A device is substantially equivalent if it has the same intended use and the same technological characteristics as the predicate.' },
         { id: 'c4', source: '[REG-012]', title: _regulation.title, section: _regulation.regulationNumber, excerpt: _regulation.identification },
       ],
+      confidence: 0.88,
     }
   }
 
@@ -133,6 +140,7 @@ ${predicateRows}
         { id: 'c1', source: '[REG-012]', title: _regulation.title, section: _regulation.regulationNumber, excerpt: _regulation.identification },
         { id: 'c2', source: '[REG-001]', title: 'Premarket Notification Requirements', section: '21 CFR 807.87', excerpt: 'Each 510(k) shall contain information required to demonstrate substantial equivalence to a legally marketed device.' },
       ],
+      confidence: 0.90,
     }
   }
 
@@ -155,6 +163,7 @@ ${predicateRows}
         { id: 'c2', source: '[REG-005]', title: 'General Safety and Performance Requirements', section: 'Annex I', excerpt: 'Devices shall achieve the performance intended by their manufacturer and shall be designed and manufactured such that they do not compromise clinical condition or safety.' },
         { id: 'c3', source: '[REG-006]', title: 'Clinical Evaluation', section: 'Article 61 / Annex XIV', excerpt: 'Manufacturers shall plan, conduct, assess, report and update clinical evaluation in accordance with this Annex.' },
       ],
+      confidence: 0.91,
     }
   }
 
@@ -181,6 +190,7 @@ ${predicateRows}
         { id: 'c2', source: '[REG-008]', title: 'Risk Control Options', section: 'Clause 7.1', excerpt: 'The manufacturer shall use one or more of the following options in the priority order listed: a) inherent safety by design; b) protective measures; c) information for safety.' },
         { id: 'c3', source: '[REG-009]', title: 'Overall Residual Risk Evaluation', section: 'Clause 8', excerpt: 'The manufacturer shall evaluate the overall residual risk using the criteria established in the risk management plan.' },
       ],
+      confidence: 0.93,
     }
   }
 
@@ -204,6 +214,7 @@ Almost identical structure to FDA 21 CFR Part 820 — companies certified to ISO
         { id: 'c1', source: '[REG-010]', title: 'ISO 13485 Scope', section: 'Clause 1', excerpt: 'This International Standard specifies requirements for a QMS where an organization needs to demonstrate its ability to provide medical devices that consistently meet applicable regulatory requirements.' },
         { id: 'c2', source: '[REG-011]', title: 'Design and Development', section: 'Clause 7.3', excerpt: 'The organization shall document procedures for design and development. The organization shall plan and control the design and development of product.' },
       ],
+      confidence: 0.89,
     }
   }
 
@@ -260,6 +271,7 @@ ${_chunks.filter((c) => c.sourceType === 'regulation').map((c) => `*${c.section}
 |---|---|---|
 ${predicateRows}`,
     citations: [],
+    confidence: 0,
   }
 }
 
@@ -275,7 +287,7 @@ export async function POST(request: NextRequest) {
 
     const lastUserMsg = [...messages].reverse().find((m) => m.role === 'user')?.content ?? ''
 
-    let result: { content: string; citations: Citation[] }
+    let result: { content: string; citations: ChatCitation[]; confidence?: number }
 
     if (!process.env.OPENAI_API_KEY) {
       // Demo mode

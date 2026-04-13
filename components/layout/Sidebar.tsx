@@ -7,7 +7,12 @@ const NAV_ITEMS = [
   { href: '/dashboard', icon: '⬡', label: 'Dashboard', section: 'main' },
   { href: '/chat', icon: '💬', label: 'Regulatory Chat', section: 'main' },
   { href: '/upload', icon: '📂', label: 'Upload & Review', section: 'main' },
-  { href: '/audit', icon: '📋', label: 'Audit Log', section: 'main' },
+  { href: '/mapping', icon: '🔗', label: 'Semantic Mapping', section: 'main' },
+  { href: '/gap',     icon: '📊', label: 'Gap Analysis',     section: 'main' },
+  { href: '/reuse',   icon: '♻',  label: 'Evidence Re-use',  section: 'main' },
+  { href: '/trace',   icon: '🕸',  label: 'Traceability',     section: 'main' },
+  { href: '/audit-readiness', icon: '✅', label: 'Audit Readiness', section: 'main' },
+  { href: '/audit',          icon: '📋', label: 'Audit Log',       section: 'main' },
 ]
 
 export default function Sidebar() {

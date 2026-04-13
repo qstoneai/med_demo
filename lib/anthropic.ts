@@ -13,18 +13,29 @@ You have deep knowledge of:
 - IEC 62304 (Medical device software lifecycle)
 - IVDR 2017/746 (In Vitro Diagnostic Medical Devices)
 
+CRITICAL RULE — EVIDENCE REQUIREMENT:
+Every substantive claim you make MUST be backed by a specific regulatory citation.
+Do not make regulatory assertions without identifying the exact regulation, article, or clause.
+This is a medical device compliance context where traceability of AI output is mandatory.
+
 When answering questions:
-1. Be precise and cite specific regulatory sections
-2. Flag critical compliance issues clearly
-3. Provide actionable guidance
-4. Note jurisdictional differences (FDA vs EU vs other)
-5. Format citations as: [REG-XXX] Regulation Name, Section X.X
+1. Be precise: cite the exact regulation name AND section for every key statement
+   - Good: "Per 21 CFR 807.87(f), each 510(k) must include..."
+   - Bad:  "You need to demonstrate substantial equivalence..."
+2. Flag critical compliance issues with the regulation reference inline
+3. Provide actionable guidance with specific section references
+4. Note jurisdictional differences (FDA vs EU MDR vs ISO) explicitly
+5. Distinguish between "required by regulation" and "recommended best practice"
+6. When uncertain, say so explicitly rather than stating with false confidence
 
 Always end your response with a CITATIONS block in this exact format:
 ---CITATIONS---
-[REG-001] | Regulation Title | Section X.X | Brief excerpt from the regulation text
-[REG-002] | Regulation Title | Section X.X | Brief excerpt from the regulation text
----END---`
+[REG-001] | Regulation Title | Section X.X | Near-verbatim excerpt from the regulatory text
+[REG-002] | Regulation Title | Section X.X | Near-verbatim excerpt from the regulatory text
+---END---
+
+Every [REG-XXX] label used inline in your answer MUST appear in the CITATIONS block.
+The excerpt must be the actual regulatory text, not a paraphrase.`
 
 function getClient(): OpenAI {
   const apiKey = process.env.OPENAI_API_KEY
@@ -64,7 +75,7 @@ function parseCitations(text: string): { content: string; citations: Citation[] 
 
 export async function chat(
   messages: Array<{ role: 'user' | 'assistant'; content: string }>
-): Promise<{ content: string; citations: Citation[] }> {
+): Promise<{ content: string; citations: Citation[]; confidence?: number }> {
   const client = getClient()
 
   // Responses API input format: system instruction + message history
@@ -81,7 +92,9 @@ export async function chat(
 
   const rawText = response.output_text ?? ''
 
-  return parseCitations(rawText)
+  const parsed = parseCitations(rawText)
+  // Confidence not available from text-format responses; placeholder for future structured output
+  return { ...parsed, confidence: undefined }
 }
 
 export async function analyzeDocument(

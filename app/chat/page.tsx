@@ -4,6 +4,10 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import TopBar from '@/components/layout/TopBar'
 import type { Message, Citation } from '@/lib/types'
 
+// ChatCitation mirrors the shape returned by /api/chat
+// (source = badge label, excerpt = regulation quote)
+type ChatCitation = Citation & { excerpt: string }
+
 interface IthPredicateWithLinks {
   kNumber: string
   deviceName: string
@@ -22,10 +26,25 @@ const SUGGESTED_QUESTIONS = [
   'How does FDA define substantial equivalence?',
 ]
 
-function CitationCard({ citation }: { citation: Citation }) {
+function CitationCard({ citation, isActive }: { citation: Citation; isActive: boolean }) {
   return (
-    <div className="citation-card">
-      <div className="citation-source">{citation.source}</div>
+    <div
+      id={`chat-cit-${citation.id}`}
+      className="citation-card"
+      style={isActive ? {
+        borderLeft: '3px solid var(--accent)',
+        background: 'rgba(79,142,247,0.07)',
+        outline: '1px solid rgba(79,142,247,0.3)',
+      } : undefined}
+    >
+      <div className="citation-source" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        {citation.source}
+        {isActive && (
+          <span style={{ fontSize: 10, background: 'var(--accent)', color: '#fff', borderRadius: 3, padding: '1px 5px', fontWeight: 700 }}>
+            active
+          </span>
+        )}
+      </div>
       <div className="citation-title">{citation.title}</div>
       <div className="citation-section">§ {citation.section}</div>
       {citation.excerpt && (
@@ -64,9 +83,11 @@ export default function ChatPage() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [allCitations, setAllCitations] = useState<Citation[]>([])
+  const [activeCitationId, setActiveCitationId] = useState<string | null>(null)
   const [predicates, setPredicates] = useState<IthPredicateWithLinks[]>([])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
+  const citationsPanelRef = useRef<HTMLDivElement>(null)
 
   // Fetch predicate links once on mount
   useEffect(() => {
@@ -84,6 +105,13 @@ export default function ChatPage() {
 
   useEffect(() => { scrollToBottom() }, [messages, loading, scrollToBottom])
 
+  // Scroll to and highlight the active citation in the sidebar
+  useEffect(() => {
+    if (!activeCitationId) return
+    const el = document.getElementById(`chat-cit-${activeCitationId}`)
+    el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }, [activeCitationId])
+
   const sendMessage = useCallback(async (text: string) => {
     const trimmed = text.trim()
     if (!trimmed || loading) return
@@ -98,6 +126,7 @@ export default function ChatPage() {
     setMessages((prev) => [...prev, userMsg])
     setInput('')
     setLoading(true)
+    setActiveCitationId(null)
 
     try {
       const history = [...messages, userMsg].map((m) => ({
@@ -166,6 +195,7 @@ export default function ChatPage() {
                 timestamp: new Date().toISOString(),
               }])
               setAllCitations([])
+              setActiveCitationId(null)
             }}
           >
             Clear Chat
@@ -214,17 +244,31 @@ export default function ChatPage() {
                     </div>
                     {msg.citations && msg.citations.length > 0 && (
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-                        {msg.citations.map((c) => (
-                          <span key={c.id} className="badge" style={{
-                            background: 'rgba(79,142,247,0.12)',
-                            color: 'var(--accent)',
-                            border: '1px solid rgba(79,142,247,0.25)',
-                            cursor: 'pointer',
-                            fontSize: 10.5,
-                          }}>
-                            📎 {c.source}
-                          </span>
-                        ))}
+                        {msg.citations.map((c) => {
+                          const isActive = activeCitationId === c.id
+                          return (
+                            <button
+                              key={c.id}
+                              title={`${c.title}\n§ ${c.section}\n\n${c.excerpt}`}
+                              onClick={() => {
+                                setActiveCitationId(isActive ? null : c.id)
+                                // Ensure sidebar panel is visible
+                                citationsPanelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+                              }}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 3,
+                                padding: '2px 8px', borderRadius: 4,
+                                fontSize: 10.5, fontWeight: 600, cursor: 'pointer',
+                                border: isActive ? '1px solid var(--accent)' : '1px solid rgba(79,142,247,0.25)',
+                                background: isActive ? 'rgba(79,142,247,0.22)' : 'rgba(79,142,247,0.1)',
+                                color: 'var(--accent)',
+                                transition: 'background 0.15s, border-color 0.15s',
+                              }}
+                            >
+                              📎 {c.source}
+                            </button>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
@@ -269,18 +313,35 @@ export default function ChatPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, overflow: 'hidden' }}>
 
             {/* Citations panel */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div className="card-title">📎 Citations</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} ref={citationsPanelRef}>
+              <div className="card-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>📎 Citations {allCitations.length > 0 ? `(${allCitations.length})` : ''}</span>
+                {activeCitationId && (
+                  <button
+                    onClick={() => setActiveCitationId(null)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 11, color: 'var(--text-muted)' }}
+                  >
+                    ✕ clear
+                  </button>
+                )}
+              </div>
               <div className="citations-panel">
                 {allCitations.length === 0 ? (
                   <div className="empty-state" style={{ padding: 24 }}>
                     <div className="empty-state-icon">📎</div>
-                    <div className="empty-state-text">Citations from AI responses will appear here</div>
+                    <div className="empty-state-text">Click a citation badge on any AI reply to see the source here</div>
                   </div>
                 ) : (
-                  allCitations.map((c) => <CitationCard key={c.id} citation={c} />)
+                  allCitations.map((c) => (
+                    <CitationCard key={c.id} citation={c} isActive={activeCitationId === c.id} />
+                  ))
                 )}
               </div>
+              {allCitations.length > 0 && (
+                <div style={{ fontSize: 10.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  Click a <strong style={{ color: 'var(--accent)' }}>📎 badge</strong> on any reply to highlight the source citation.
+                </div>
+              )}
             </div>
 
             {/* Related FDA Predicate Links */}
